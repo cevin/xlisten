@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 const (
@@ -47,8 +48,9 @@ func init() {
 		if offset < len(names) && len(names[offset]) > 0 {
 			name = names[offset]
 		}
-
+		syscall.CloseOnExec(fd)
 		f := os.NewFile(uintptr(fd), name)
+		defer f.Close()
 
 		// wrap fd
 		_ = xnet.WrapFD(int(f.Fd()))
@@ -87,6 +89,17 @@ func SystemdOwner() bool {
 	envPid, _ := strconv.Atoi(os.Getenv(ListenPid))
 
 	return envPid == os.Getpid()
+}
+
+func IsCalledBySystemd() bool {
+	return len(Listens) > 0
+}
+
+func RetrieveFirstListener() net.Listener {
+	if IsCalledBySystemd() {
+		return Listens[0].Listener
+	}
+	return nil
 }
 
 func Listen(network, address string) (net.Listener, error) {
