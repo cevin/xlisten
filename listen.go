@@ -39,7 +39,7 @@ type UDPListenItem struct {
 	Addr       net.Addr
 	ListenOn   string
 	ListenPort string
-	Conn       net.PacketConn
+	Conn       *net.UDPConn
 }
 
 var TCPListens []*TCPListenItem
@@ -103,6 +103,7 @@ func init() {
 				Network:    ln.LocalAddr().Network(),
 				ListenOn:   host,
 				ListenPort: port,
+				Conn:       ln.(*net.UDPConn),
 			})
 		}
 
@@ -156,6 +157,14 @@ func ListenUDP(network, address string) (*net.UDPConn, error) {
 	addr, err := ParseAddress(network, address)
 	if err != nil {
 		return nil, err
+	}
+
+	if strings.HasPrefix(network, "udp") && addr != nil {
+		for _, item := range UDPListens {
+			if item.ListenOn == addr.IP && item.ListenPort == strconv.Itoa(addr.Port) {
+				return item.Conn, nil
+			}
+		}
 	}
 
 	return xnet.ListenUDP(network, &net.UDPAddr{
